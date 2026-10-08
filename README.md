@@ -77,6 +77,26 @@ Note that USB debugging is not required to run scrcpy in [OTG mode](doc/otg.md).
  - [macOS](doc/macos.md)
 
 
+## Debian 12 / low-end hardware build
+
+This fork keeps a dedicated `debian12-2.7` build based on scrcpy 2.7, the
+last release before the upstream SDL2-to-SDL3 migration. It is built in
+GitHub Actions inside Debian 12 against Debian 12's native SDL2 and FFmpeg
+libraries, with Core 2 CPU tuning for older x86_64 machines.
+
+The intended baseline is Debian 12 x86_64 with older Intel integrated graphics
+such as the GM965. The matching Android server is built from source and is
+included with the Linux artifact.
+
+For a Core 2 Duo host and a Qualcomm-based Android 8 device, a good starting
+command is:
+
+    scrcpy --max-size=1024 --video-codec=h264 --no-audio \
+           --video-encoder=OMX.qcom.video.encoder.avc
+
+The GitHub Actions workflow produces both a Debian 12 `.deb` package and a
+portable tarball for the `debian12-2.7` branch.
+
 ## Usage examples
 
 There are a lot of options, [documented](#user-documentation) in separate pages.
