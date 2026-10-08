@@ -1,5 +1,9 @@
 name: Debian 12 compatible scrcpy 2.7
 
+concurrency:
+  group: debian12-scrcpy-build
+  cancel-in-progress: true
+
 on:
   push:
     branches:
