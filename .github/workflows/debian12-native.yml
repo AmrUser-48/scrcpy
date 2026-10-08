@@ -10,6 +10,10 @@ concurrency:
   group: scrcpy-debian12-5.0.1
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build:
     name: Build scrcpy 5.0.1 for Debian 12 / Core 2
@@ -174,14 +178,16 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          objdump -d build/app/scrcpy | grep -E '\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\b' && {
-            echo "Found instructions unavailable on Core 2"
+
+          if objdump -d build/app/scrcpy | grep -Eq '\\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\\b'; then
+            echo "Found instructions unavailable on Core 2 in scrcpy"
             exit 1
-          } || true
-          objdump -d "${DEPS_PREFIX}/lib/libSDL3-"*.so* | grep -E '\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\b' && {
+          fi
+
+          if objdump -d "${DEPS_PREFIX}/lib/libSDL3-"*.so* | grep -Eq '\\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\\b'; then
             echo "Found AVX-style instructions in SDL3"
             exit 1
-          } || true
+          fi
 
       - name: Assemble portable Debian 12 bundle
         shell: bash
@@ -224,9 +230,8 @@ jobs:
           - scrcpy 5.0.1
           - minSdk 21
 
-          Recommended for a low-end host and the Huawei DUB-LX1:
-              ./scrcpy --max-size=1024 --video-codec=h264 --no-audio \
-                       --video-encoder=OMX.qcom.video.encoder.avc
+          For older hardware, try:
+              ./scrcpy --max-size=1024 --video-codec=h264 --no-audio
 
           The scrcpy client and scrcpy-server must remain together.
           Run ./scrcpy from this directory.
@@ -261,3 +266,57 @@ jobs:
             dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz
             dist/SHA256SUMS.txt
           if-no-files-found: error
+
+  publish:
+    name: Publish Debian 12 GitHub release
+    needs: build
+    runs-on: ubuntu-22.04
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v5.0.1-debian12-core2
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: scrcpy-5.0.1-debian12-core2-x86_64
+          path: dist
+
+      - name: Create or update release
+        run: |
+          set -euxo pipefail
+
+          test -s dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz
+          test -s dist/SHA256SUMS.txt
+
+          cat > release-notes.md <<EOF
+          ## scrcpy 5.0.1 — Debian 12 / Core 2
+
+          Portable Debian 12 x86_64 build for older hardware.
+
+          Built in Debian 12 with:
+          - SDL3 3.4.18 bundled from source
+          - FFmpeg 6.1.6 bundled from source
+          - Core 2 compatible compiler tuning
+          - X11/OpenGL support for older Intel graphics
+          - matching scrcpy 5.0.1 Android server
+
+          Build commit: ${GITHUB_SHA}
+          EOF
+
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" \
+              dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz \
+              dist/SHA256SUMS.txt \
+              --repo "${GITHUB_REPOSITORY}" \
+              --clobber
+          else
+            gh release create "${TAG}" \
+              dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz \
+              dist/SHA256SUMS.txt \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "scrcpy 5.0.1 — Debian 12 / Core 2" \
+              --notes-file release-notes.md \
+              --target "${GITHUB_SHA}"
+          fi
