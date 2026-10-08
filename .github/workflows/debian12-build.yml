@@ -113,9 +113,10 @@ jobs:
       - name: Package Debian 12 .deb
         run: |
           ROOT="dist/deb"
-          mkdir -p "${ROOT}/DEBIAN" "${ROOT}/usr/bin" "${ROOT}/usr/share/scrcpy"
+          mkdir -p "${ROOT}/DEBIAN" "${ROOT}/usr/bin"
           cp build/app/scrcpy "${ROOT}/usr/bin/scrcpy"
-          cp build/server/scrcpy-server "${ROOT}/usr/share/scrcpy/scrcpy-server"
+          # portable=true makes the client look for scrcpy-server beside it.
+          cp build/server/scrcpy-server "${ROOT}/usr/bin/scrcpy-server"
           cat > "${ROOT}/DEBIAN/control" <<'EOF'
           Package: scrcpy-debian12
           Version: 2.7.0-1
