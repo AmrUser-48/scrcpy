@@ -23,6 +23,8 @@ jobs:
       ANDROID_SDK_ROOT: /opt/android-sdk
       CFLAGS: -march=core2 -mtune=core2
       CC: gcc
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
 
     steps:
       - name: Install build dependencies
