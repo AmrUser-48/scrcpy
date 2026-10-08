@@ -83,6 +83,30 @@ Note that USB debugging is not required to run scrcpy in [OTG mode](doc/otg.md).
  - [macOS](doc/macos.md)
 
 
+## Debian 12 / older x86_64 build
+
+This fork provides a Debian 12 x86_64 build for older CPUs, including Core 2 systems.
+
+The current build is based on scrcpy 5.0.1 and is built in a Debian 12 container with:
+
+- SDL3 3.4.18, built from source and bundled with the portable package
+- FFmpeg 6.1.6, built from source and bundled with the portable package
+- `-march=core2 -mtune=core2` compiler tuning
+- newer CPU instruction sets disabled during the SDL3 build
+- X11/OpenGL support for older Intel graphics
+- the Android server built from the same scrcpy 5.0.1 sources
+
+The resulting Linux package is intended to run on Debian 12 x86_64 without installing newer Debian packages for SDL3 or FFmpeg. Release packages will be published from the GitHub Releases page.
+
+For older hardware, reducing the mirrored resolution can significantly reduce CPU load:
+
+```bash
+scrcpy --max-size=1024 --video-codec=h264 --no-audio
+```
+
+Build workflow: https://github.com/AmrUser-48/scrcpy/actions/workflows/debian12-native.yml
+
+
 ## Must-know tips
 
  - [Reducing resolution](doc/video.md#size) may greatly improve performance
