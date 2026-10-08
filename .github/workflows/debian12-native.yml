@@ -1,0 +1,263 @@
+name: Debian 12 native scrcpy 5.0.1
+
+on:
+  push:
+    branches:
+      - debian12-5.0.1
+  workflow_dispatch:
+
+concurrency:
+  group: scrcpy-debian12-5.0.1
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build scrcpy 5.0.1 for Debian 12 / Core 2
+    runs-on: ubuntu-22.04
+    container:
+      image: debian:12
+
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      ANDROID_HOME: /opt/android-sdk
+      ANDROID_SDK_ROOT: /opt/android-sdk
+      DEPS_PREFIX: /opt/scrcpy-deps
+      SDL_VERSION: 3.4.18
+      FFMPEG_VERSION: 6.1.6
+      CC: gcc
+      CFLAGS: -O2 -pipe -march=core2 -mtune=core2
+      CXXFLAGS: -O2 -pipe -march=core2 -mtune=core2
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl unzip xz-utils git \
+            gcc g++ make pkg-config meson ninja-build cmake \
+            nasm yasm patchelf file tar gzip \
+            openjdk-17-jdk \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+            libxinerama-dev libxkbcommon-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libasound2-dev libpulse-dev libudev-dev \
+            libdbus-1-dev libusb-1.0-0-dev \
+            libdrm-dev
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build SDL3 3.4.18 for Core 2
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/src "${DEPS_PREFIX}"
+          curl -fsSL \
+            "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz" \
+            -o /tmp/SDL3.tar.gz
+          echo "9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3  /tmp/SDL3.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/SDL3.tar.gz -C /tmp/src
+          cmake -S "/tmp/src/SDL3-${SDL_VERSION}" -B /tmp/sdl-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${DEPS_PREFIX}" \
+            -DCMAKE_C_FLAGS="${CFLAGS}" \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DSDL_SHARED=ON \
+            -DSDL_STATIC=OFF \
+            -DSDL_TESTS=OFF \
+            -DSDL_INSTALL_TESTS=OFF \
+            -DSDL_EXAMPLES=OFF \
+            -DSDL_ASSEMBLY=ON \
+            -DSDL_AVX=OFF \
+            -DSDL_AVX2=OFF \
+            -DSDL_AVX512F=OFF \
+            -DSDL_SSE4_1=OFF \
+            -DSDL_SSE4_2=OFF \
+            -DSDL_SSE=ON \
+            -DSDL_SSE2=ON \
+            -DSDL_SSE3=ON \
+            -DSDL_X11=ON \
+            -DSDL_WAYLAND=OFF \
+            -DSDL_OPENGL=ON \
+            -DSDL_OPENGLES=ON \
+            -DSDL_ALSA=ON \
+            -DSDL_PULSEAUDIO=OFF \
+            -DSDL_PIPEWIRE=OFF \
+            -DSDL_JACK=OFF \
+            -DSDL_OSS=OFF \
+            -DSDL_KMSDRM=OFF \
+            -DSDL_VULKAN=OFF \
+            -DSDL_DBUS=ON \
+            -DSDL_RPATH=OFF
+          cmake --build /tmp/sdl-build --parallel 2
+          cmake --install /tmp/sdl-build
+          ldconfig
+          "${DEPS_PREFIX}/bin/sdl3-config" --version || true
+
+      - name: Build FFmpeg 6.1.6 for Core 2
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/src
+          curl -fsSL \
+            "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" \
+            -o /tmp/ffmpeg.tar.xz
+          tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/src
+          cd "/tmp/src/ffmpeg-${FFMPEG_VERSION}"
+          ./configure \
+            --prefix="${DEPS_PREFIX}" \
+            --libdir="${DEPS_PREFIX}/lib" \
+            --pkgconfigdir="${DEPS_PREFIX}/lib/pkgconfig" \
+            --disable-programs \
+            --disable-doc \
+            --disable-debug \
+            --disable-static \
+            --enable-shared \
+            --enable-pic \
+            --disable-autodetect \
+            --enable-pthreads \
+            --cpu=core2 \
+            --extra-cflags="${CFLAGS}"
+          make -j2
+          make install
+          ldconfig
+          pkg-config --modversion libavcodec
+          pkg-config --modversion libavformat
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "${ANDROID_HOME}/cmdline-tools"
+          curl -fsSL \
+            https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip \
+            -o /tmp/cmdline-tools.zip
+          unzip -q /tmp/cmdline-tools.zip -d "${ANDROID_HOME}/cmdline-tools"
+          mv "${ANDROID_HOME}/cmdline-tools/cmdline-tools" "${ANDROID_HOME}/cmdline-tools/latest"
+          export PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Build matching Android server
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
+          rm -rf server/build_manual
+          ANDROID_PLATFORM=36 \
+          ANDROID_BUILD_TOOLS=36.0.0 \
+          BUILD_DIR="${PWD}/server/build_manual" \
+          ./server/build_without_gradle.sh
+
+      - name: Build scrcpy client
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export PKG_CONFIG_PATH="${DEPS_PREFIX}/lib/pkgconfig"
+          export LD_LIBRARY_PATH="${DEPS_PREFIX}/lib"
+          meson setup build \
+            --buildtype=release \
+            --strip \
+            -Db_lto=true \
+            -Dportable=true \
+            -Dv4l2=false \
+            -Dvaapi=false \
+            -Dprebuilt_server="${PWD}/server/build_manual/scrcpy-server"
+          ninja -C build
+          patchelf --set-rpath '$ORIGIN/lib' build/app/scrcpy
+          build/app/scrcpy --version
+
+      - name: Verify no newer CPU instructions
+        shell: bash
+        run: |
+          set -euxo pipefail
+          objdump -d build/app/scrcpy | grep -E '\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\b' && {
+            echo "Found instructions unavailable on Core 2"
+            exit 1
+          } || true
+          objdump -d "${DEPS_PREFIX}/lib/libSDL3-"*.so* | grep -E '\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\b' && {
+            echo "Found AVX-style instructions in SDL3"
+            exit 1
+          } || true
+
+      - name: Assemble portable Debian 12 bundle
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="${PWD}/dist/scrcpy-5.0.1-debian12-core2-x86_64"
+          mkdir -p "${ROOT}/lib"
+
+          cp build/app/scrcpy "${ROOT}/scrcpy"
+          cp server/build_manual/scrcpy-server "${ROOT}/scrcpy-server"
+
+          cp "${DEPS_PREFIX}/lib"/libSDL3*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libavcodec*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libavformat*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libavutil*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libswresample*.so* "${ROOT}/lib/"
+
+          cp LICENSE "${ROOT}/LICENSE"
+          cp README.md "${ROOT}/README-upstream.md"
+
+          cat > "${ROOT}/README.md" <<'EOF'
+          # scrcpy 5.0.1 — Debian 12 / Core 2 build
+
+          Built in a Debian 12 container for old x86_64 hardware.
+
+          Target:
+          - Debian 12 Bookworm
+          - x86_64
+          - Intel Core 2 / SSSE3-class CPU
+          - old Intel integrated graphics / OpenGL 2.x
+          - X11
+
+          Bundled from source:
+          - SDL3 3.4.18
+          - FFmpeg 6.1.6
+
+          The bundle does not require Debian 12 to provide SDL3 or FFmpeg.
+
+          Android server:
+          - scrcpy 5.0.1
+          - minSdk 21
+
+          Recommended for a low-end host and the Huawei DUB-LX1:
+              ./scrcpy --max-size=1024 --video-codec=h264 --no-audio \
+                       --video-encoder=OMX.qcom.video.encoder.avc
+
+          The scrcpy client and scrcpy-server must remain together.
+          Run ./scrcpy from this directory.
+          EOF
+
+          tar -C dist -czf dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz \
+            "scrcpy-5.0.1-debian12-core2-x86_64"
+
+      - name: Verify bundled runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd dist/scrcpy-5.0.1-debian12-core2-x86_64
+          LD_LIBRARY_PATH="${PWD}/lib" ./scrcpy --version
+          echo "=== linked libraries ==="
+          LD_LIBRARY_PATH="${PWD}/lib" ldd ./scrcpy
+          echo "=== binary ==="
+          file ./scrcpy
+          echo "=== dependencies ==="
+          readelf -d ./scrcpy | grep -E 'NEEDED|RPATH|RUNPATH'
+
+      - name: Checksums
+        shell: bash
+        run: |
+          sha256sum dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz > dist/SHA256SUMS.txt
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrcpy-5.0.1-debian12-core2-x86_64
+          path: |
+            dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
