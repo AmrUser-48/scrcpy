@@ -128,6 +128,7 @@ jobs:
           make -j2
           make install
           ldconfig
+          export PKG_CONFIG_PATH="${DEPS_PREFIX}/lib/pkgconfig"
           pkg-config --modversion libavcodec
           pkg-config --modversion libavformat
 
