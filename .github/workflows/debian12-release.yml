@@ -1,0 +1,72 @@
+name: Publish Debian 12 release
+
+on:
+  workflow_run:
+    workflows:
+      - Debian 12 native scrcpy 5.0.1
+    types:
+      - completed
+    branches:
+      - debian12-5.0.1
+
+concurrency:
+  group: scrcpy-debian12-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-22.04
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v5.0.1-debian12-core2
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: scrcpy-5.0.1-debian12-core2-x86_64
+          path: dist
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Show release files
+        run: |
+          set -euxo pipefail
+          ls -lah dist
+          test -s dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz
+          test -s dist/SHA256SUMS.txt
+
+      - name: Create or update GitHub Release
+        run: |
+          set -euxo pipefail
+          REPO="${GITHUB_REPOSITORY}"
+          NOTES_FILE="$(mktemp)"
+
+          cat > "${NOTES_FILE}" <<EOF
+          ## scrcpy 5.0.1 — Debian 12 / Core 2
+
+          Debian 12 x86_64 portable build for older hardware.
+
+          Built in Debian 12 with:
+          - SDL3 3.4.18 bundled from source
+          - FFmpeg 6.1.6 bundled from source
+          - Core 2 compatible compiler tuning
+          - X11/OpenGL support for older Intel graphics
+          - matching scrcpy 5.0.1 Android server
+
+          Build commit: ${{ github.event.workflow_run.head_sha }}
+
+          Build workflow: ${{ github.event.workflow_run.html_url }}
+          EOF
+
+          if gh release view "${TAG}" --repo "${REPO}" >/dev/null 2>&1; then
+            gh release upload "${TAG}"               dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz               dist/SHA256SUMS.txt               --repo "${REPO}"               --clobber
+          else
+            gh release create "${TAG}"               dist/scrcpy-5.0.1-debian12-core2-x86_64.tar.gz               dist/SHA256SUMS.txt               --repo "${REPO}"               --title "scrcpy 5.0.1 — Debian 12 / Core 2"               --notes-file "${NOTES_FILE}"               --target "${{ github.event.workflow_run.head_sha }}"
+          fi
