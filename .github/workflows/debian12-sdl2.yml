@@ -95,17 +95,19 @@ jobs:
         run: |
           set -euxo pipefail
           meson setup build \
-            --buildtype=release --strip -Db_lto=true -Dportable=false \
+            --buildtype=release --strip -Db_lto=true -Dportable=true \
             -Dv4l2=false -Dprebuilt_server="${PWD}/server/build_manual/scrcpy-server"
           ninja -C build
           build/app/scrcpy --version
 
-      - name: Verify CPU compatibility
+      - name: Verify adjacent server lookup and CPU compatibility
         shell: bash
         working-directory: src
         run: |
           set -euxo pipefail
-          if objdump -d build/app/scrcpy | grep -Eq '\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\b'; then
+          grep -n -A18 'get_server_path(void)' app/src/server.c
+          grep -n 'sc_file_get_local_path(SC_SERVER_FILENAME)' app/src/server.c
+          if objdump -d build/app/scrcpy | grep -Eq '\\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\\b'; then
             echo "Found newer CPU instructions in scrcpy"; exit 1
           fi
           file build/app/scrcpy
@@ -134,6 +136,7 @@ jobs:
           - Compiler tuning: -O2 -pipe -march=core2 -mtune=core2
           - X11/OpenGL build for older Intel integrated graphics
           - Android server built from matching scrcpy 3.3.4 source
+          - Portable mode enabled so scrcpy finds scrcpy-server beside the executable
 
           Install runtime libraries if needed:
               sudo apt install libsdl2-2.0-0 libavcodec59 libavformat59 libavutil57 libswresample4
@@ -151,6 +154,8 @@ jobs:
         run: |
           set -euxo pipefail
           cd dist/scrcpy-3.3.4-debian12-core2-x86_64
+          test -x ./scrcpy
+          test -s ./scrcpy-server
           ./scrcpy --version
           ldd ./scrcpy
           cd "${GITHUB_WORKSPACE}"
@@ -194,6 +199,7 @@ jobs:
           - Core 2-compatible compiler tuning
           - X11/OpenGL support
           - Matching Android server built from scrcpy 3.3.4 source
+          - Portable mode: keep scrcpy-server beside scrcpy
 
           Build commit: ${GITHUB_SHA}
           EOF
