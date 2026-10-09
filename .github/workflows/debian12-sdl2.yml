@@ -100,7 +100,7 @@ jobs:
             -DSDL_RPATH=OFF
           cmake --build /tmp/sdl-build --parallel 2
           cmake --install /tmp/sdl-build
-          ldconfig
+          export PKG_CONFIG_PATH="${DEPS_PREFIX}/lib/pkgconfig"
           pkg-config --modversion sdl2
 
       - name: Build FFmpeg 6.1.6 for Core 2
@@ -187,6 +187,8 @@ jobs:
           cp "${DEPS_PREFIX}/lib"/libavformat*.so* "${ROOT}/lib/"
           cp "${DEPS_PREFIX}/lib"/libavutil*.so* "${ROOT}/lib/"
           cp "${DEPS_PREFIX}/lib"/libswresample*.so* "${ROOT}/lib/"
+          # Give bundled shared libraries a relocatable lookup path for their own dependencies.
+          find "${ROOT}/lib" -type f -name '*.so*' -exec patchelf --set-rpath '$ORIGIN' {} +
           cp LICENSE "${ROOT}/LICENSE"
           cat > "${ROOT}/README.md" <<'EOF'
           # scrcpy 3.3.4 — Debian 12 / SDL2 / Core 2
@@ -213,8 +215,8 @@ jobs:
         run: |
           set -euxo pipefail
           cd dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64
-          LD_LIBRARY_PATH="${PWD}/lib" ./scrcpy --version
-          LD_LIBRARY_PATH="${PWD}/lib" ldd ./scrcpy
+          ./scrcpy --version
+          ldd ./scrcpy
           file ./scrcpy
           readelf -d ./scrcpy | grep -E 'NEEDED|RPATH|RUNPATH'
 
