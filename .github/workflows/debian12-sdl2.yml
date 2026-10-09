@@ -166,10 +166,10 @@ jobs:
         working-directory: src
         run: |
           set -euxo pipefail
-          if objdump -d build/app/scrcpy | grep -Eq '\\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\\b'; then
+          if objdump -d build/app/scrcpy | grep -Eq '\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\b'; then
             echo "Found newer CPU instructions in scrcpy"; exit 1
           fi
-          if objdump -d "${DEPS_PREFIX}/lib"/libSDL2*.so* | grep -Eq '\\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\\b'; then
+          if objdump -d "${DEPS_PREFIX}/lib"/libSDL2*.so* | grep -Eq '\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\b'; then
             echo "Found AVX-style instructions in SDL2"; exit 1
           fi
 
