@@ -1,0 +1,268 @@
+name: Debian 12 scrcpy 3.3.4 SDL2 / Core 2
+
+on:
+  push:
+    branches:
+      - debian12-3.3.4-sdl2
+  workflow_dispatch:
+
+concurrency:
+  group: scrcpy-debian12-3.3.4-sdl2
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    name: Build scrcpy 3.3.4 with SDL2 for Debian 12 / Core 2
+    runs-on: ubuntu-22.04
+    container:
+      image: debian:12
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      ANDROID_HOME: /opt/android-sdk
+      ANDROID_SDK_ROOT: /opt/android-sdk
+      DEPS_PREFIX: /opt/scrcpy-deps
+      SDL_VERSION: 2.32.8
+      FFMPEG_VERSION: 6.1.6
+      CC: gcc
+      CFLAGS: -O2 -pipe -march=core2 -mtune=core2
+      CXXFLAGS: -O2 -pipe -march=core2 -mtune=core2
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl unzip xz-utils git \
+            gcc g++ make pkg-config meson ninja-build cmake \
+            nasm yasm patchelf file tar gzip \
+            openjdk-17-jdk \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+            libxinerama-dev libxkbcommon-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+            libasound2-dev libpulse-dev libudev-dev \
+            libdbus-1-dev libusb-1.0-0-dev \
+            libdrm-dev
+
+      - name: Checkout workflow repository
+        uses: actions/checkout@v5
+
+      - name: Fetch upstream scrcpy 3.3.4 source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch v3.3.4 https://github.com/Genymobile/scrcpy.git src
+          test "$(git -C src describe --tags --exact-match)" = "v3.3.4"
+
+      - name: Build SDL2 2.32.8 for Core 2
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch release-2.32.8 https://github.com/libsdl-org/SDL.git /tmp/SDL2
+          cmake -S /tmp/SDL2 -B /tmp/sdl-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${DEPS_PREFIX}" \
+            -DCMAKE_C_FLAGS="${CFLAGS}" \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DSDL_SHARED=ON \
+            -DSDL_STATIC=OFF \
+            -DSDL_TEST=OFF \
+            -DSDL_TESTS=OFF \
+            -DSDL_INSTALL_TESTS=OFF \
+            -DSDL_EXAMPLES=OFF \
+            -DSDL_ASSEMBLY=ON \
+            -DSDL_AVX=OFF \
+            -DSDL_AVX2=OFF \
+            -DSDL_AVX512F=OFF \
+            -DSDL_SSE4_1=OFF \
+            -DSDL_SSE4_2=OFF \
+            -DSDL_SSE=ON \
+            -DSDL_SSE2=ON \
+            -DSDL_SSE3=ON \
+            -DSDL_X11=ON \
+            -DSDL_WAYLAND=OFF \
+            -DSDL_OPENGL=ON \
+            -DSDL_OPENGLES=ON \
+            -DSDL_ALSA=ON \
+            -DSDL_PULSEAUDIO=OFF \
+            -DSDL_PIPEWIRE=OFF \
+            -DSDL_JACK=OFF \
+            -DSDL_OSS=OFF \
+            -DSDL_KMSDRM=OFF \
+            -DSDL_VULKAN=OFF \
+            -DSDL_DBUS=ON \
+            -DSDL_RPATH=OFF
+          cmake --build /tmp/sdl-build --parallel 2
+          cmake --install /tmp/sdl-build
+          ldconfig
+          pkg-config --modversion sdl2
+
+      - name: Build FFmpeg 6.1.6 for Core 2
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/src
+          curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" -o /tmp/ffmpeg.tar.xz
+          tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/src
+          cd "/tmp/src/ffmpeg-${FFMPEG_VERSION}"
+          ./configure \
+            --prefix="${DEPS_PREFIX}" \
+            --libdir="${DEPS_PREFIX}/lib" \
+            --pkgconfigdir="${DEPS_PREFIX}/lib/pkgconfig" \
+            --disable-programs --disable-doc --disable-debug \
+            --disable-static --enable-shared --enable-pic \
+            --disable-autodetect --enable-pthreads --cpu=core2 \
+            --extra-cflags="${CFLAGS}"
+          make -j2
+          make install
+          ldconfig
+          export PKG_CONFIG_PATH="${DEPS_PREFIX}/lib/pkgconfig"
+          pkg-config --modversion libavcodec
+          pkg-config --modversion libavformat
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "${ANDROID_HOME}/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip -o /tmp/cmdline-tools.zip
+          unzip -q /tmp/cmdline-tools.zip -d "${ANDROID_HOME}/cmdline-tools"
+          mv "${ANDROID_HOME}/cmdline-tools/cmdline-tools" "${ANDROID_HOME}/cmdline-tools/latest"
+          export PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Build matching Android server
+        shell: bash
+        working-directory: src
+        run: |
+          set -euxo pipefail
+          export PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
+          ANDROID_PLATFORM=36 ANDROID_BUILD_TOOLS=36.0.0 BUILD_DIR="${PWD}/server/build_manual" ./server/build_without_gradle.sh
+          test -s server/build_manual/scrcpy-server
+
+      - name: Build scrcpy client
+        shell: bash
+        working-directory: src
+        run: |
+          set -euxo pipefail
+          export PKG_CONFIG_PATH="${DEPS_PREFIX}/lib/pkgconfig"
+          export LD_LIBRARY_PATH="${DEPS_PREFIX}/lib"
+          meson setup build \
+            --buildtype=release --strip -Db_lto=true -Dportable=true \
+            -Dv4l2=false -Dprebuilt_server="${PWD}/server/build_manual/scrcpy-server"
+          ninja -C build
+          patchelf --set-rpath '$ORIGIN/lib' build/app/scrcpy
+          LD_LIBRARY_PATH="${DEPS_PREFIX}/lib" build/app/scrcpy --version
+
+      - name: Verify CPU compatibility
+        shell: bash
+        working-directory: src
+        run: |
+          set -euxo pipefail
+          if objdump -d build/app/scrcpy | grep -Eq '\\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\\b'; then
+            echo "Found newer CPU instructions in scrcpy"; exit 1
+          fi
+          if objdump -d "${DEPS_PREFIX}/lib"/libSDL2*.so* | grep -Eq '\\b(vmov|vadd|vsub|vp[a-z]+|vzeroupper|xsave|xgetbv)\\b'; then
+            echo "Found AVX-style instructions in SDL2"; exit 1
+          fi
+
+      - name: Assemble portable bundle
+        shell: bash
+        working-directory: src
+        run: |
+          set -euxo pipefail
+          ROOT="${GITHUB_WORKSPACE}/dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64"
+          mkdir -p "${ROOT}/lib"
+          cp build/app/scrcpy "${ROOT}/scrcpy"
+          cp server/build_manual/scrcpy-server "${ROOT}/scrcpy-server"
+          cp "${DEPS_PREFIX}/lib"/libSDL2*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libavcodec*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libavformat*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libavutil*.so* "${ROOT}/lib/"
+          cp "${DEPS_PREFIX}/lib"/libswresample*.so* "${ROOT}/lib/"
+          cp LICENSE "${ROOT}/LICENSE"
+          cat > "${ROOT}/README.md" <<'EOF'
+          # scrcpy 3.3.4 — Debian 12 / SDL2 / Core 2
+
+          Portable x86_64 build compiled in Debian 12 Bookworm for older CPUs.
+
+          - Upstream scrcpy: 3.3.4 (last upstream release using SDL2)
+          - SDL2: 2.32.8, built from source and bundled
+          - FFmpeg: 6.1.6, built from source and bundled
+          - Compiler tuning: -march=core2 -mtune=core2
+          - Target: X11/OpenGL; older Intel integrated graphics
+          - Android server: built from the matching scrcpy 3.3.4 source; minSdk 21
+
+          Run ./scrcpy from this directory. Keep scrcpy-server and the lib directory alongside the executable.
+
+          For older hardware, try:
+              ./scrcpy --max-size=1024 --video-codec=h264 --no-audio
+          EOF
+          mkdir -p "${GITHUB_WORKSPACE}/dist"
+          tar -C "${GITHUB_WORKSPACE}/dist" -czf "${GITHUB_WORKSPACE}/dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64.tar.gz" scrcpy-3.3.4-debian12-sdl2-core2-x86_64
+
+      - name: Verify portable runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64
+          LD_LIBRARY_PATH="${PWD}/lib" ./scrcpy --version
+          LD_LIBRARY_PATH="${PWD}/lib" ldd ./scrcpy
+          file ./scrcpy
+          readelf -d ./scrcpy | grep -E 'NEEDED|RPATH|RUNPATH'
+
+      - name: Checksums
+        run: sha256sum dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64.tar.gz > dist/SHA256SUMS.txt
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrcpy-3.3.4-debian12-sdl2-core2-x86_64
+          path: |
+            dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64.tar.gz
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  publish:
+    name: Publish Debian 12 SDL2 release
+    needs: build
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v3.3.4-debian12-sdl2-core2
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: scrcpy-3.3.4-debian12-sdl2-core2-x86_64
+          path: dist
+      - name: Publish release
+        run: |
+          set -euxo pipefail
+          test -s dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64.tar.gz
+          test -s dist/SHA256SUMS.txt
+          cat > release-notes.md <<EOF
+          ## scrcpy 3.3.4 — Debian 12 / SDL2 / Core 2
+
+          Portable x86_64 build for Debian 12 and older CPUs.
+
+          - Upstream scrcpy 3.3.4, the last release before the SDL3 migration
+          - SDL2 2.32.8 and FFmpeg 6.1.6 built from source and bundled
+          - Core 2-compatible compiler tuning
+          - X11/OpenGL support for older Intel graphics
+          - Matching Android server built from scrcpy 3.3.4 source
+
+          Build commit: ${GITHUB_SHA}
+          EOF
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64.tar.gz dist/SHA256SUMS.txt --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            gh release create "${TAG}" dist/scrcpy-3.3.4-debian12-sdl2-core2-x86_64.tar.gz dist/SHA256SUMS.txt --repo "${GITHUB_REPOSITORY}" --title "scrcpy 3.3.4 — Debian 12 / SDL2 / Core 2" --notes-file release-notes.md --target "${GITHUB_SHA}"
+          fi
