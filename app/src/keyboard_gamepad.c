@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "events.h"
 #include "input_events.h"
 #include "util/log.h"
 
@@ -137,7 +138,7 @@ auto_r_timer_callback(Uint32 interval, void *userdata) {
 
     SDL_Event event;
     SDL_zero(event);
-    event.type = kg->auto_r_event_type;
+    event.type = SC_EVENT_KEYBOARD_GAMEPAD_AUTO_R;
     if (SDL_PushEvent(&event) < 0) {
         // The timer is independent from the UI thread. Do not call the
         // gamepad processor here; input reports must be sent on the UI thread.
@@ -168,15 +169,8 @@ sc_keyboard_gamepad_init(struct sc_keyboard_gamepad *kg,
         return false;
     }
 
-    if (SDL_InitSubSystem(SDL_INIT_TIMER | SDL_INIT_EVENTS)) {
+    if (SDL_InitSubSystem(SDL_INIT_TIMER)) {
         LOGE("Could not initialize SDL timer: %s", SDL_GetError());
-        return false;
-    }
-
-    kg->auto_r_event_type = SDL_RegisterEvents(1);
-    if (kg->auto_r_event_type == (uint32_t) -1) {
-        LOGE("Could not register keyboard gamepad timer event: %s",
-             SDL_GetError());
         return false;
     }
 
@@ -266,7 +260,7 @@ sc_keyboard_gamepad_process_key(struct sc_keyboard_gamepad *kg,
 bool
 sc_keyboard_gamepad_process_event(struct sc_keyboard_gamepad *kg,
                                   const SDL_Event *event) {
-    if (!kg->initialized || event->type != kg->auto_r_event_type) {
+    if (!kg->initialized || event->type != SC_EVENT_KEYBOARD_GAMEPAD_AUTO_R) {
         return false;
     }
 
