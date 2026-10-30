@@ -22,6 +22,8 @@ sc_input_manager_init(struct sc_input_manager *im,
     assert(!params->mp || params->mp->ops);
     assert(!params->gp || params->gp->ops);
 
+    memset(&im->keyboard_gamepad, 0, sizeof(im->keyboard_gamepad));
+
     im->controller = params->controller;
     im->fp = params->fp;
     im->screen = params->screen;
