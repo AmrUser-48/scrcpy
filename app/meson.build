@@ -159,9 +159,11 @@ conf.set_quoted('SCRCPY_VERSION', meson.project_version())
 # the prefix used during configuration (meson --prefix=PREFIX)
 conf.set_quoted('PREFIX', get_option('prefix'))
 
-# build a "portable" version (with scrcpy-server accessible from the same
-# directory as the executable)
+# Keep scrcpy-server beside the executable for the Debian archive.
+# ADB is a system runtime dependency and must be resolved through PATH instead
+# of requiring an adb binary beside scrcpy.
 conf.set('PORTABLE', get_option('portable'))
+conf.set('SC_ADB_USE_PATH', true)
 
 # the default client TCP port range for the "adb reverse" tunnel
 # overridden by option --port
