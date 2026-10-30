@@ -56,3 +56,26 @@ as a single misbehaving one. Use UHID if you need multiple gamepads.
 Note: On Windows, it may only work in [OTG mode](otg.md), not while mirroring
 (it is not possible to open a USB device if it is already open by another
 process like the _adb daemon_).
+
+## Keyboard-to-gamepad mapping
+
+Use `scrcpy --joystick` (or `scrcpy -j`) to expose a virtual Xbox 360-style
+HID gamepad to Android and drive it from the computer keyboard. This uses
+scrcpy's existing UHID transport; no host-side `uinput` device is created.
+
+| Keyboard | Gamepad input |
+| --- | --- |
+| `W`, `A`, `S`, `D` | Left stick |
+| `P`, `O` | Right stick right / left |
+| `0`, `9` | Right stick right / left at half range |
+| `E`, `B`, `R`, `C` | A, B, X, Y |
+| `Q`, `Tab` | Left / right shoulder |
+| `G` | Right shoulder (alternate key) |
+| `L`, `T` | Left / right stick click |
+| `1` | D-pad up |
+| `F`, Left Ctrl | Left trigger |
+| Left Alt | Right trigger |
+| `4` | Toggle automatic X-button press every 1.3 seconds |
+
+Opposite stick directions return to the center. Duplicate bindings (Left Ctrl/F
+and Tab/G) are combined, so releasing one key does not cancel the other.
