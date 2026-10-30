@@ -105,7 +105,7 @@ update_state(struct sc_keyboard_gamepad *kg) {
     send_button(kg, SC_GAMEPAD_BUTTON_EAST,
                 key_down(kg, SDL_SCANCODE_B));
     send_button(kg, SC_GAMEPAD_BUTTON_WEST,
-                key_down(kg, SDL_SCANCODE_R));
+                key_down(kg, SDL_SCANCODE_R) || kg->auto_x_pulse);
     send_button(kg, SC_GAMEPAD_BUTTON_NORTH,
                 key_down(kg, SDL_SCANCODE_C));
     send_button(kg, SC_GAMEPAD_BUTTON_LEFT_SHOULDER,
@@ -123,8 +123,12 @@ update_state(struct sc_keyboard_gamepad *kg) {
 
 static void
 pulse_x(struct sc_keyboard_gamepad *kg) {
-    send_button(kg, SC_GAMEPAD_BUTTON_WEST, true);
-    send_button(kg, SC_GAMEPAD_BUTTON_WEST, false);
+    // Combine the timed pulse with the physical R key, so one source cannot
+    // release X while the other source is still holding it.
+    kg->auto_x_pulse = true;
+    update_state(kg);
+    kg->auto_x_pulse = false;
+    update_state(kg);
 }
 
 static Uint32
