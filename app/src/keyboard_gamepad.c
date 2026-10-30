@@ -131,25 +131,30 @@ pulse_x(struct sc_keyboard_gamepad *kg) {
     update_state(kg);
 }
 
-static Uint32
+static Uint32 SDLCALL
 auto_r_timer_callback(Uint32 interval, void *userdata) {
-    (void) interval;
+    struct sc_keyboard_gamepad *kg = userdata;
 
-    uint32_t event_type = (uint32_t) (uintptr_t) userdata;
     SDL_Event event;
     SDL_zero(event);
-    event.type = event_type;
-    SDL_PushEvent(&event);
-    return 0;
+    event.type = kg->auto_r_event_type;
+    if (SDL_PushEvent(&event) < 0) {
+        // The timer is independent from the UI thread. Do not call the
+        // gamepad processor here; input reports must be sent on the UI thread.
+        return interval;
+    }
+
+    // Keep one periodic timer alive while auto-X is enabled. Returning the
+    // interval avoids removing/recreating timers from the UI event handler.
+    return interval;
 }
 
 static void
 schedule_auto_r(struct sc_keyboard_gamepad *kg) {
     kg->auto_r_timer = SDL_AddTimer(
-        SC_KEYBOARD_GAMEPAD_AUTO_R_INTERVAL, auto_r_timer_callback,
-        (void *) (uintptr_t) kg->auto_r_event_type);
+        SC_KEYBOARD_GAMEPAD_AUTO_R_INTERVAL, auto_r_timer_callback, kg);
     if (!kg->auto_r_timer) {
-        LOGW("Could not schedule keyboard gamepad auto-R: %s", SDL_GetError());
+        LOGW("Could not schedule keyboard gamepad auto-X: %s", SDL_GetError());
     }
 }
 
@@ -265,10 +270,8 @@ sc_keyboard_gamepad_process_event(struct sc_keyboard_gamepad *kg,
         return false;
     }
 
-    kg->auto_r_timer = 0;
     if (kg->auto_r_active) {
         pulse_x(kg);
-        schedule_auto_r(kg);
     }
     return true;
 }
