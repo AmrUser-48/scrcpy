@@ -12,7 +12,7 @@
 #include "shortcut_mod.h"
 #include "util/log.h"
 
-void
+bool
 sc_input_manager_init(struct sc_input_manager *im,
                       const struct sc_input_manager_params *params) {
     // A key/mouse processor may not be present if there is no controller
@@ -46,6 +46,14 @@ sc_input_manager_init(struct sc_input_manager *im,
     im->key_repeat = 0;
 
     im->next_sequence = 1; // 0 is reserved for SC_SEQUENCE_INVALID
+
+    if (params->keyboard_gamepad) {
+        if (!sc_keyboard_gamepad_init(&im->keyboard_gamepad, im->gp)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static void
@@ -388,6 +396,10 @@ sc_input_manager_process_key(struct sc_input_manager *im,
     uint16_t mods = im->sdl_shortcut_mods;
     bool is_shortcut = sc_shortcut_mods_is_shortcut_mod(mods, mod)
                     || sc_shortcut_mods_is_shortcut_key(mods, sdl_keycode);
+
+    if (!im->disconnected) {
+        sc_keyboard_gamepad_process_key(&im->keyboard_gamepad, event);
+    }
 
     if (down && !repeat) {
         if (sdl_keycode == im->last_keycode && mod == im->last_mod) {
@@ -1015,6 +1027,10 @@ sc_input_manager_process_file(struct sc_input_manager *im,
 void
 sc_input_manager_handle_event(struct sc_input_manager *im,
                               const SDL_Event *event) {
+    if (sc_keyboard_gamepad_process_event(&im->keyboard_gamepad, event)) {
+        return;
+    }
+
     bool control = im->controller;
     bool paused = im->screen->paused;
     switch (event->type) {
@@ -1084,4 +1100,9 @@ sc_input_manager_handle_event(struct sc_input_manager *im,
             sc_input_manager_process_file(im, &event->drop);
         }
     }
+}
+
+void
+sc_input_manager_destroy(struct sc_input_manager *im) {
+    sc_keyboard_gamepad_destroy(&im->keyboard_gamepad);
 }
