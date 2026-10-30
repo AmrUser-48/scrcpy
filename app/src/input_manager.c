@@ -399,9 +399,7 @@ sc_input_manager_process_key(struct sc_input_manager *im,
     bool is_shortcut = sc_shortcut_mods_is_shortcut_mod(mods, mod)
                     || sc_shortcut_mods_is_shortcut_key(mods, sdl_keycode);
 
-    if (!im->disconnected) {
-        sc_keyboard_gamepad_process_key(&im->keyboard_gamepad, event);
-    }
+    sc_keyboard_gamepad_process_key(&im->keyboard_gamepad, event);
 
     if (down && !repeat) {
         if (sdl_keycode == im->last_keycode && mod == im->last_mod) {
