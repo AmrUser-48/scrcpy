@@ -1,225 +1,301 @@
-**This GitHub repo (<https://github.com/Genymobile/scrcpy>) is the only official
-source for the project. Do not download releases from random websites, even if
-their name contains `scrcpy`.**
+# scrcpy 3.3.4 — Debian 12 / Core 2 / keyboard gamepad
 
-# scrcpy (v3.3.4)
+This branch is a focused modification of **upstream scrcpy 3.3.4**. It keeps the
+scrcpy base version, Android server protocol, video/audio pipeline, SDL2
+integration and existing keyboard/mouse behavior. The only application feature
+added here is keyboard-driven gamepad input, enabled explicitly with
+`--joystick` / `-j`.
 
-<img src="app/data/icon.svg" width="128" height="128" alt="scrcpy" align="right" />
+The target is Debian 12 Bookworm on x86_64, including Intel Core 2 systems such
+as the Dell Latitude D630. The Linux build uses Debian's shared SDL2 and FFmpeg
+libraries. Those libraries are runtime dependencies, not copies bundled into
+the executable.
 
-_pronounced "**scr**een **c**o**py**"_
+## Feature overview
 
-This application mirrors Android devices (video and audio) connected via USB or
-[TCP/IP](doc/connection.md#tcpip-wireless) and allows control using the
-computer's keyboard and mouse. It does not require _root_ access or an app
-installed on the device. It works on _Linux_, _Windows_, and _macOS_.
+Start the modified controller mode with:
 
-![screenshot](assets/screenshot-debian-600.jpg)
-
-It focuses on:
-
- - **lightness**: native, displays only the device screen
- - **performance**: 30~120fps, depending on the device
- - **quality**: 1920×1080 or above
- - **low latency**: [35~70ms][lowlatency]
- - **low startup time**: ~1 second to display the first image
- - **non-intrusiveness**: nothing is left installed on the Android device
- - **user benefits**: no account, no ads, no internet required
- - **freedom**: free and open source software
-
-[lowlatency]: https://github.com/Genymobile/scrcpy/pull/646
-
-Its features include:
- - [audio forwarding](doc/audio.md) (Android 11+)
- - [recording](doc/recording.md)
- - [virtual display](doc/virtual_display.md)
- - mirroring with [Android device screen off](doc/device.md#turn-screen-off)
- - [copy-paste](doc/control.md#copy-paste) in both directions
- - [configurable quality](doc/video.md)
- - [camera mirroring](doc/camera.md) (Android 12+)
- - [mirroring as a webcam (V4L2)](doc/v4l2.md) (Linux-only)
- - physical [keyboard][hid-keyboard] and [mouse][hid-mouse] simulation (HID)
- - [gamepad](doc/gamepad.md) support
- - [OTG mode](doc/otg.md)
- - and more…
-
-[hid-keyboard]: doc/keyboard.md#physical-keyboard-simulation
-[hid-mouse]: doc/mouse.md#physical-mouse-simulation
-
-## Prerequisites
-
-The Android device requires at least API 21 (Android 5.0).
-
-[Audio forwarding](doc/audio.md) is supported for API >= 30 (Android 11+).
-
-Make sure you [enabled USB debugging][enable-adb] on your device(s).
-
-[enable-adb]: https://developer.android.com/studio/debug/dev-options#enable
-
-On some devices (especially Xiaomi), you might get the following error:
-
-```
-Injecting input events requires the caller (or the source of the instrumentation, if any) to have the INJECT_EVENTS permission.
+```sh
+./scrcpy --joystick
+# equivalent
+./scrcpy -j
 ```
 
-In that case, you need to enable [an additional option][control] `USB debugging
-(Security Settings)` (this is an item different from `USB debugging`) to control
-it using a keyboard and mouse. Rebooting the device is necessary once this
-option is set.
+The option creates a second, software-originated gamepad in scrcpy's existing
+Android HID gamepad path. Android identifies the HID device using the existing
+Xbox 360-compatible descriptor and VID/PID (`045e:028e`, Microsoft X-Box 360
+Pad). Input reports are sent through scrcpy's UHID transport.
 
-[control]: https://github.com/Genymobile/scrcpy/issues/70#issuecomment-373286323
+This is **not** a Linux virtual input device:
 
-Note that USB debugging is not required to run scrcpy in [OTG mode](doc/otg.md).
+- No host `uinput` device is created.
+- No Python process or `python-uinput` dependency is required.
+- No SDL virtual joystick is registered on the host.
+- The keyboard mapping is translated directly into scrcpy gamepad axis and
+  button events, then encoded by the existing HID gamepad implementation.
+- The virtual gamepad exists on the Android side, alongside any physical
+  controller already forwarded by scrcpy.
 
+`--joystick` automatically selects `--gamepad=uhid`. It requires normal device
+control and a scrcpy window; it is not supported with `--no-control`,
+`--no-window` or OTG mode. The option is opt-in; without it, scrcpy's 3.3.4
+input behavior is unchanged.
 
-## Get the app
+## Keyboard mapping
 
- - [Linux](doc/linux.md)
- - [Windows](doc/windows.md) (read [how to run](doc/windows.md#run))
- - [macOS](doc/macos.md)
+The default mapping follows the supplied keyboard-to-`uinput` prototype.
 
+| Host key | Android gamepad input | Details |
+| --- | --- | --- |
+| `W` | Left stick up | `Y = -32768` |
+| `A` | Left stick left | `X = -32768` |
+| `S` | Left stick down | `Y = 32767` |
+| `D` | Left stick right | `X = 32767` |
+| `P` | Right stick right | Full positive X |
+| `O` | Right stick left | Full negative X |
+| `0` | Right stick right | Half positive X |
+| `9` | Right stick left | Half negative X |
+| `E` | A | South face button |
+| `B` | B | East face button |
+| `R` | X | West face button |
+| `C` | Y | North face button |
+| `Q` | Left shoulder | LB |
+| `Tab`, `G` | Right shoulder | RB; either key holds it |
+| `F`, Left Ctrl | Left trigger | LT; either key holds it |
+| Left Alt | Right trigger | RT |
+| `L` | Left stick click | L3 |
+| `T` | Right stick click | R3 |
+| `1` | D-pad up | Digital hat direction |
+| `4` | Auto-X toggle | Enables/disables timed X presses |
 
-## Must-know tips
+Axes return to their centered value when their mapped keys are released. As in
+the prototype, when opposite keys are held, the later check takes precedence:
+D over A, W over S, 0 over P, 9 over 0, and O over P. The right stick Y axis is
+currently held at center; the prototype's 5/6 mappings were commented out.
 
- - [Reducing resolution](doc/video.md#size) may greatly improve performance
-   (`scrcpy -m1024`)
- - [_Right-click_](doc/mouse.md#mouse-bindings) triggers `BACK`
- - [_Middle-click_](doc/mouse.md#mouse-bindings) triggers `HOME`
- - <kbd>Alt</kbd>+<kbd>f</kbd> toggles [fullscreen](doc/window.md#fullscreen)
- - There are many other [shortcuts](doc/shortcuts.md)
+Mapped keys continue through scrcpy's normal keyboard-input path as well. The
+gamepad mapping is additive; it does not turn the host keyboard into an
+exclusive controller or remap ordinary text input.
 
+### Automatic X button
 
-## Usage examples
+Press `4` once to enable automatic X-button presses. The implementation sends
+an initial short X press/release and then repeats it every **1.3 seconds**.
+Press `4` again to disable it. The `R` key can still hold X manually; the
+automatic pulse does not release a manually held X button.
 
-There are a lot of options, [documented](#user-documentation) in separate pages.
-Here are just some common examples.
+The SDL timer callback only posts a user event. Gamepad reports are generated
+on scrcpy's UI/event thread, not from the SDL timer thread. A single repeating
+timer is used while the feature is enabled; disabling the feature removes it.
+This keeps timer callbacks away from the controller/HID state and avoids
+repeated timer destruction/recreation.
 
- - Capture the screen in H.265 (better quality), limit the size to 1920, limit
-   the frame rate to 60fps, disable audio, and control the device by simulating
-   a physical keyboard:
+## Application changes
 
-    ```bash
-    scrcpy --video-codec=h265 --max-size=1920 --max-fps=60 --no-audio --keyboard=uhid
-    scrcpy --video-codec=h265 -m1920 --max-fps=60 --no-audio -K  # short version
-    ```
+All application changes are isolated behind the new `--joystick` option.
 
- - Start VLC in a new virtual display (separate from the device display):
+### New keyboard gamepad module
 
-    ```bash
-    scrcpy --new-display=1920x1080 --start-app=org.videolan.vlc
-    ```
+- `app/src/keyboard_gamepad.h`
+  - Keyboard gamepad state: held scancodes, button/axis state, auto-X state,
+    SDL timer ID, custom event type and initialization state.
+  - Init, destroy, key-event and timer-event interfaces.
+- `app/src/keyboard_gamepad.c`
+  - Maps SDL scancodes to the requested Xbox-style controls.
+  - Tracks key-down/key-up transitions, ignores SDL key-repeat for button state
+    and combines duplicate key bindings.
+  - Recomputes the affected controller axes/buttons and emits only state
+    transitions.
+  - Implements the 1.3-second automatic X pulse.
+  - Runs the timer callback separately from HID report generation; timer events
+    are handled on the UI/event thread.
 
- - Record the device camera in H.265 at 1920x1080 (and microphone) to an MP4
-   file:
+### Input manager and screen integration
 
-    ```bash
-    scrcpy --video-source=camera --video-codec=h265 --camera-size=1920x1080 --record=file.mp4
-    ```
+- `app/src/input_manager.h`, `app/src/input_manager.c`
+  - Add the keyboard gamepad state to the input manager.
+  - Initialize it only when `options->joystick` is enabled.
+  - Forward SDL keyboard and custom timer events to the new module.
+  - Destroy the virtual gamepad and release held controls during shutdown.
+- `app/src/screen.h`, `app/src/screen.c`
+  - Pass the opt-in keyboard-gamepad setting into input-manager initialization.
+  - Handle initialization failure through the screen cleanup path.
+- `app/src/options.h`, `app/src/options.c`
+  - Add the default-disabled `joystick` option.
+- `app/src/cli.c`
+  - Add `-j` and `--joystick`.
+  - Validate control/window/OTG constraints.
+  - Automatically select the UHID gamepad transport.
+- `app/src/scrcpy.c`
+  - Connect the option to screen initialization and release the keyboard gamepad
+    before stopping the controller/HID transport.
+- `app/src/input_events.h`
+  - Reserve a dedicated gamepad ID for the keyboard-created gamepad.
+- `app/src/uhid/gamepad_uhid.c`
+  - Give the keyboard-created device a safe name without attempting to look it
+    up as an SDL physical controller.
+  - Reuse the normal Xbox 360 HID descriptor and report encoder.
 
- - Capture the device front camera and expose it as a webcam on the computer (on
-   Linux):
+### Documentation and tests
 
-    ```bash
-    scrcpy --video-source=camera --camera-size=1920x1080 --camera-facing=front --v4l2-sink=/dev/video2 --no-playback
-    ```
+- `doc/gamepad.md`: documents the keyboard map and auto-X behavior.
+- `app/scrcpy.1`: documents `-j` / `--joystick`.
+- Bash and Zsh completion files: include the new option.
+- `app/tests/test_cli.c`: verifies both `--joystick` and `-j` parsing and the
+  automatic UHID selection.
+- `app/meson.build`: compiles the new keyboard gamepad source file.
 
- - Control the device without mirroring by simulating a physical keyboard and
-   mouse (USB debugging not required):
+The implementation does not replace or patch the scrcpy Android server's HID
+protocol. It reuses the existing 3.3.4 UHID gamepad transport and descriptor.
 
-    ```bash
-    scrcpy --otg
-    ```
+## Build target
 
- - Control the device using gamepad controllers plugged into the computer:
+The supported native target is:
 
-    ```bash
-    scrcpy --gamepad=uhid
-    scrcpy -G  # short version
-    ```
+- Debian 12 Bookworm, x86_64.
+- Intel Core 2 compatible instruction set.
+- SDL 2.26 from Debian 12.
+- FFmpeg 5.1 shared libraries from Debian 12.
+- X11/OpenGL.
+- Matching `scrcpy-server` built from this branch's scrcpy 3.3.4 source.
 
-## User documentation
+The client is dynamically linked against the system libraries. The release
+archive contains the client, matching Android server and license/readme only;
+it does not bundle SDL2, FFmpeg, libusb or adb.
 
-The application provides a lot of features and configuration options. They are
-documented in the following pages:
+### Compiler and linker flags
 
- - [Connection](doc/connection.md)
- - [Video](doc/video.md)
- - [Audio](doc/audio.md)
- - [Control](doc/control.md)
- - [Keyboard](doc/keyboard.md)
- - [Mouse](doc/mouse.md)
- - [Gamepad](doc/gamepad.md)
- - [Device](doc/device.md)
- - [Window](doc/window.md)
- - [Recording](doc/recording.md)
- - [Virtual display](doc/virtual_display.md)
- - [Tunnels](doc/tunnels.md)
- - [OTG](doc/otg.md)
- - [Camera](doc/camera.md)
- - [Video4Linux](doc/v4l2.md)
- - [Shortcuts](doc/shortcuts.md)
+The safe-aggressive application profile is:
 
+```sh
+CFLAGS="-O3 -march=core2 -mtune=core2 -pipe -fomit-frame-pointer -ftree-vectorize"
+CXXFLAGS="${CFLAGS}"
+LDFLAGS="-Wl,-O1 -Wl,--as-needed"
+```
 
-## Resources
+Debian hardening flags remain enabled in the build environment:
 
- - [FAQ](FAQ.md)
- - [Translations][wiki] (not necessarily up to date)
- - [Build instructions](doc/build.md)
- - [Developers](doc/develop.md)
+- `-D_FORTIFY_SOURCE=2`
+- `-fstack-protector-strong`
+- `-Wformat`
+- `-Werror=format-security`
+- linker `-z relro` and `-z now`
+- Debian GCC's PIE defaults
 
-[wiki]: https://github.com/Genymobile/scrcpy/wiki
+The build uses Meson's release mode, symbol stripping and LTO. It does not use
+`-march=native`, AVX, AVX2 or a newer CPU target. `-march=core2` is the
+instruction-set ceiling; `-ftree-vectorize` may vectorize only for that target.
 
+**FFmpeg clarification:** this Debian-native profile links to Debian 12's
+prebuilt FFmpeg shared libraries. The flags above compile this branch's scrcpy
+client; they do not rebuild or retune Debian's FFmpeg packages. To build FFmpeg
+from source with the same profile, pass the same CFLAGS/CXXFLAGS to FFmpeg's
+configure/make build and retain the same linker hardening flags.
 
-## Articles
+### Debian 12 build dependencies
 
-- [Introducing scrcpy][article-intro]
-- [Scrcpy now works wirelessly][article-tcpip]
-- [Scrcpy 2.0, with audio][article-scrcpy2]
+The CI container installs the development libraries from Debian 12:
 
-[article-intro]: https://blog.rom1v.com/2018/03/introducing-scrcpy/
-[article-tcpip]: https://www.genymotion.com/blog/open-source-project-scrcpy-now-works-wirelessly/
-[article-scrcpy2]: https://blog.rom1v.com/2023/03/scrcpy-2-0-with-audio/
+```sh
+sudo apt install \
+  gcc g++ make pkg-config meson ninja-build binutils file \
+  libsdl2-dev \
+  libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
+  libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+  libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+  libxinerama-dev libxkbcommon-dev \
+  libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+  libasound2-dev libudev-dev libusb-1.0-0-dev
+```
 
-## Contact
+The Android server build additionally uses OpenJDK 17, Android command-line
+tools, platform 36 and build-tools 36.0.0.
 
-You can open an [issue] for bug reports, feature requests or general questions.
+### Build commands
 
-For bug reports, please read the [FAQ](FAQ.md) first, you might find a solution
-to your problem immediately.
+Build the matching Android server:
 
-[issue]: https://github.com/Genymobile/scrcpy/issues
+```sh
+export ANDROID_HOME=/opt/android-sdk
+export ANDROID_SDK_ROOT="${ANDROID_HOME}"
+export PATH="${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${PATH}"
 
-You can also use:
+ANDROID_PLATFORM=36 \
+ANDROID_BUILD_TOOLS=36.0.0 \
+BUILD_DIR="${PWD}/server/build_manual" \
+  ./server/build_without_gradle.sh
+```
 
- - Reddit: [`r/scrcpy`](https://www.reddit.com/r/scrcpy)
- - BlueSky: [`@scrcpy.bsky.social`](https://bsky.app/profile/scrcpy.bsky.social)
- - Twitter: [`@scrcpy_app`](https://twitter.com/scrcpy_app)
+Build the client against Debian's shared libraries:
 
+```sh
+export CFLAGS="-O3 -march=core2 -mtune=core2 -pipe -fomit-frame-pointer -ftree-vectorize -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat -Werror=format-security"
+export CXXFLAGS="${CFLAGS}"
+export LDFLAGS="-Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now"
 
-## Donate
+meson setup build \
+  --buildtype=release \
+  --strip \
+  -Db_lto=true \
+  -Dstatic=false \
+  -Dportable=true \
+  -Dv4l2=false \
+  -Dprebuilt_server="${PWD}/server/build_manual/scrcpy-server"
 
-I'm [@rom1v](https://github.com/rom1v), the author and maintainer of _scrcpy_.
+ninja -C build
+```
 
-If you appreciate this application, you can [support my open source
-work][donate]:
- - [GitHub Sponsors](https://github.com/sponsors/rom1v)
- - [Liberapay](https://liberapay.com/rom1v/)
- - [PayPal](https://paypal.me/rom2v)
+### Build validation
 
-[donate]: https://blog.rom1v.com/about/#support-my-open-source-work
+CI verifies:
+
+- scrcpy reports version `3.3.4`.
+- `--help` exposes `--joystick`.
+- the executable is stripped and smaller than 512 KiB (expected size is in the
+  build log; the previous system-library build was approximately 180 KiB).
+- `ldd` resolves SDL2 and Debian 12 FFmpeg SONAMEs:
+  `libSDL2-2.0.so`, `libavcodec.so.59`, `libavformat.so.59`,
+  `libavutil.so.57` and `libswresample.so.4`.
+- the client has no unresolved shared-library dependencies.
+- disassembly contains no AVX/AVX2-class instructions unavailable on Core 2.
+- the packaged client and Android server both exist and the client can locate
+  the adjacent server.
+
+The release is a Debian 12 x86_64 tarball with `scrcpy`,
+`scrcpy-server`, `LICENSE` and this README. The workflow publishes it as a
+GitHub Release only after the build and validation steps succeed.
+
+## Runtime
+
+Install Debian 12 runtime dependencies:
+
+```sh
+sudo apt install adb libsdl2-2.0-0 libavcodec59 libavformat59 libavutil57 \
+  libswresample4 libusb-1.0-0
+```
+
+Extract the release archive and keep `scrcpy` and `scrcpy-server` in the
+same directory. Run:
+
+```sh
+./scrcpy
+./scrcpy --joystick
+```
+
+For a Core 2 Duo / Intel GMA X3100 class system, a lower capture resolution and
+H.264 can reduce CPU/GPU load:
+
+```sh
+./scrcpy --joystick --max-size=1024 --video-codec=h264 --no-audio
+```
+
+## Version boundary
+
+This branch remains scrcpy **3.3.4**. It does not rebase to a newer upstream
+version or change the server/client protocol. The joystick feature is an
+opt-in addition to the existing 3.3.4 application.
 
 ## License
 
-    Copyright (C) 2018 Genymobile
-    Copyright (C) 2018-2025 Romain Vimont
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+The upstream project and this branch are distributed under the Apache License
+2.0. See [LICENSE](LICENSE).
