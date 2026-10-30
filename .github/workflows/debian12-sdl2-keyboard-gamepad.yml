@@ -151,7 +151,8 @@ jobs:
 
           - Upstream scrcpy 3.3.4 with keyboard-to-gamepad support
           - Uses Debian 12 system SDL2 and FFmpeg shared libraries; none are bundled
-          - Core 2 tuning: -O2 -pipe -march=core2 -mtune=core2
+          - Core 2 tuning: -O3 -march=core2 -mtune=core2 -pipe -fomit-frame-pointer -ftree-vectorize
+          - Debian hardening: FORTIFY_SOURCE=2, stack protector, format-security, RELRO and NOW
           - X11/OpenGL support
           - Matching Android server built from this branch's scrcpy 3.3.4 source
           - --joystick / -j sends keyboard mappings through scrcpy's UHID gamepad path
@@ -218,7 +219,8 @@ jobs:
           x86_64 build for Debian 12 Bookworm and older CPUs.
 
           - Uses Debian 12 system SDL2 and FFmpeg shared libraries; no portable copies bundled
-          - Stripped Core 2-compatible client: -O2 -pipe -march=core2 -mtune=core2
+          - Stripped Core 2-compatible client: -O3 -march=core2 -mtune=core2 -pipe -fomit-frame-pointer -ftree-vectorize
+          - Debian hardening remains enabled (FORTIFY_SOURCE, stack protector, RELRO/NOW)
           - X11/OpenGL support
           - Keyboard gamepad: --joystick / -j
           - Matching Android server built from the same keyboard-gamepad branch
