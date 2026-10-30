@@ -105,6 +105,7 @@ enum {
     OPT_NO_MOUSE_HOVER,
     OPT_AUDIO_DUP,
     OPT_GAMEPAD,
+    OPT_JOYSTICK,
     OPT_NEW_DISPLAY,
     OPT_LIST_APPS,
     OPT_START_APP,
@@ -453,6 +454,12 @@ static const struct sc_option options[] = {
                 "\"aoa\" simulates physical gamepads using the AOAv2 protocol."
                 "It may only work over USB.\n"
                 "Also see --keyboard and --mouse.",
+    },
+    {
+        .shortopt = 'j',
+        .longopt = "joystick",
+        .text = "Map keyboard keys to a virtual gamepad sent to Android.\n"
+                "Requires device control and a scrcpy window.",
     },
     {
         .shortopt = 'h',
@@ -2789,6 +2796,9 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
             case 'G':
                 opts->gamepad_input_mode = SC_GAMEPAD_INPUT_MODE_UHID_OR_AOA;
                 break;
+            case 'j':
+                opts->joystick = true;
+                break;
             case OPT_GAMEPAD:
                 if (!parse_gamepad(optarg, &opts->gamepad_input_mode)) {
                     return false;
@@ -2857,6 +2867,23 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
 #ifdef HAVE_V4L2
     v4l2 = !!opts->v4l2_device;
 #endif
+
+    if (opts->joystick) {
+        if (!opts->control) {
+            LOGE("--joystick requires device control; remove --no-control.");
+            return false;
+        }
+        if (!opts->window) {
+            LOGE("--joystick requires a scrcpy window; remove --no-window.");
+            return false;
+        }
+        if (otg) {
+            LOGE("--joystick is not supported in OTG mode.");
+            return false;
+        }
+        // The keyboard mapping uses scrcpy's existing UHID gamepad transport.
+        opts->gamepad_input_mode = SC_GAMEPAD_INPUT_MODE_UHID;
+    }
 
     if (!opts->window) {
         // Without window, there cannot be any video playback
