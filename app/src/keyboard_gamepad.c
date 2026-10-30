@@ -54,8 +54,8 @@ send_axis(struct sc_keyboard_gamepad *kg, enum sc_gamepad_axis axis,
 
 static void
 update_state(struct sc_keyboard_gamepad *kg) {
-    // WASD: left stick. Opposite directions cancel; D and W take precedence
-    // when both keys on an axis are held, matching the original key map.
+    // WASD: left stick. When opposing keys are held, D overrides A and W
+    // overrides S, matching the order of the original key checks.
     int16_t left_x = 0;
     int16_t left_y = 0;
     if (key_down(kg, SDL_SCANCODE_A)) {
