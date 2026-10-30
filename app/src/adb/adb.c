@@ -36,7 +36,7 @@ sc_adb_init(void) {
         return true;
     }
 
-#if !defined(PORTABLE) || defined(_WIN32)
+#if !defined(PORTABLE) || defined(_WIN32) || defined(SC_ADB_USE_PATH)
     adb_executable = strdup("adb");
     if (!adb_executable) {
         LOG_OOM();
