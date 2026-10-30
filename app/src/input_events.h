@@ -417,6 +417,7 @@ struct sc_touch_event {
 // The ID value starts at 0 and increments from there. The value -1 is an
 // invalid ID.
 #define SC_GAMEPAD_ID_INVALID UINT32_C(-1)
+#define SC_GAMEPAD_ID_KEYBOARD (SC_GAMEPAD_ID_INVALID - UINT32_C(1))
 
 struct sc_gamepad_device_event {
     uint32_t gamepad_id;
