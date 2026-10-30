@@ -1,9 +1,6 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - debian12-3.3.4-sdl2-keyboard-gamepad
   workflow_dispatch:
     inputs:
       name:
