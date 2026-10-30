@@ -14,6 +14,7 @@ struct sc_keyboard_gamepad {
     uint32_t buttons_state;
     int16_t axes_state[SDL_CONTROLLER_AXIS_MAX];
     bool auto_r_active;
+    bool auto_x_pulse;
     SDL_TimerID auto_r_timer;
     uint32_t auto_r_event_type;
     bool initialized;
