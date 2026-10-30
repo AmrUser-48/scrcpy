@@ -163,7 +163,7 @@ sc_keyboard_gamepad_init(struct sc_keyboard_gamepad *kg,
         return false;
     }
 
-    if (SDL_InitSubSystem(SDL_INIT_TIMER)) {
+    if (SDL_InitSubSystem(SDL_INIT_TIMER | SDL_INIT_EVENTS)) {
         LOGE("Could not initialize SDL timer: %s", SDL_GetError());
         return false;
     }
