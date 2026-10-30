@@ -186,11 +186,22 @@ The build uses Meson's release mode, symbol stripping and LTO. It does not use
 `-march=native`, AVX, AVX2 or a newer CPU target. `-march=core2` is the
 instruction-set ceiling; `-ftree-vectorize` may vectorize only for that target.
 
-**FFmpeg clarification:** this Debian-native profile links to Debian 12's
+**FFmpeg clarification:** this Debian-native release links to Debian 12's
 prebuilt FFmpeg shared libraries. The flags above compile this branch's scrcpy
-client; they do not rebuild or retune Debian's FFmpeg packages. To build FFmpeg
-from source with the same profile, pass the same CFLAGS/CXXFLAGS to FFmpeg's
-configure/make build and retain the same linker hardening flags.
+client; they do not rebuild or retune Debian's FFmpeg packages.
+
+For a separate FFmpeg-from-source build, use the same safe-aggressive profile:
+
+```sh
+CFLAGS="-O3 -march=core2 -mtune=core2 -pipe -fomit-frame-pointer -ftree-vectorize"
+CXXFLAGS="${CFLAGS}"
+LDFLAGS="-Wl,-O1 -Wl,--as-needed"
+```
+
+Keep Debian hardening enabled for that source build as well:
+`-D_FORTIFY_SOURCE=2`, `-fstack-protector-strong`, `-Wformat`,
+`-Werror=format-security`, `-Wl,-z,relro` and `-Wl,-z,now`.
+Do not add `-march=native`; Core 2 remains the instruction-set target.
 
 ### Debian 12 build dependencies
 
