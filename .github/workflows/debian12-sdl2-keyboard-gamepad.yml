@@ -70,6 +70,7 @@ jobs:
           grep -Eq "version: ['\"]3\\.3\\.4['\"]" meson.build
           grep -q 'sc_keyboard_gamepad_init' app/src/keyboard_gamepad.c
           grep -q 'opts->joystick' app/src/cli.c
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
           git log -1 --oneline
 
       - name: Install Android SDK
