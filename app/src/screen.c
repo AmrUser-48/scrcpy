@@ -436,13 +436,16 @@ sc_screen_init(struct sc_screen *screen,
         .kp = params->kp,
         .mp = params->mp,
         .gp = params->gp,
+        .keyboard_gamepad = params->keyboard_gamepad,
         .mouse_bindings = params->mouse_bindings,
         .legacy_paste = params->legacy_paste,
         .clipboard_autosync = params->clipboard_autosync,
         .shortcut_mods = params->shortcut_mods,
     };
 
-    sc_input_manager_init(&screen->im, &im_params);
+    if (!sc_input_manager_init(&screen->im, &im_params)) {
+        goto error_destroy_display;
+    }
 
     // Initialize even if not used for simplicity
     sc_mouse_capture_init(&screen->mc, screen->window, params->shortcut_mods);
