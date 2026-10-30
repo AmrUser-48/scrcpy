@@ -292,12 +292,8 @@ sudo apt install adb libsdl2-2.0-0 libavcodec59 libavformat59 libavutil57 \
 ```
 
 Extract the release archive and keep `scrcpy` and `scrcpy-server` in the
-same directory. Install ADB and the runtime libraries:
-
-```sh
-sudo apt install adb libsdl2-2.0-0 libavcodec59 libavformat59 libavutil57 \\
-  libswresample4 libusb-1.0-0
-```
+same directory. ADB is resolved from `PATH`; the matching server is resolved
+beside the scrcpy executable:
 
 Run from the extracted directory (ADB is found from `PATH`; the matching
 server is found beside the scrcpy executable):
