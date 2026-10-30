@@ -77,5 +77,6 @@ scrcpy's existing UHID transport; no host-side `uinput` device is created.
 | Left Alt | Right trigger |
 | `4` | Toggle automatic X-button press every 1.3 seconds |
 
-Opposite stick directions return to the center. Duplicate bindings (Left Ctrl/F
-and Tab/G) are combined, so releasing one key does not cancel the other.
+When opposing stick directions are held, the last check takes precedence (D over
+A, W over S; 9 over 0, O over P). Duplicate bindings (Left Ctrl/F and Tab/G)
+are combined, so releasing one key does not cancel the other.
