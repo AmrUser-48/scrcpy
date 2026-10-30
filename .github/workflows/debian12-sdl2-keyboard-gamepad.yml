@@ -28,8 +28,9 @@ jobs:
       ANDROID_HOME: /opt/android-sdk
       ANDROID_SDK_ROOT: /opt/android-sdk
       CC: gcc
-      CFLAGS: -O2 -pipe -march=core2 -mtune=core2
-      CXXFLAGS: -O2 -pipe -march=core2 -mtune=core2
+      CFLAGS: -O3 -march=core2 -mtune=core2 -pipe -fomit-frame-pointer -ftree-vectorize -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat -Werror=format-security
+      CXXFLAGS: -O3 -march=core2 -mtune=core2 -pipe -fomit-frame-pointer -ftree-vectorize -D_FORTIFY_SOURCE=2 -fstack-protector-strong -Wformat -Werror=format-security
+      LDFLAGS: -Wl,-O1 -Wl,--as-needed -Wl,-z,relro -Wl,-z,now
 
     steps:
       - name: Install Debian 12 build dependencies
