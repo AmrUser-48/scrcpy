@@ -809,6 +809,7 @@ aoa_complete:
             .kp = kp,
             .mp = mp,
             .gp = gp,
+            .keyboard_gamepad = options->joystick,
             .mouse_bindings = options->mouse_bindings,
             .legacy_paste = options->legacy_paste,
             .clipboard_autosync = options->clipboard_autosync,
@@ -956,6 +957,11 @@ aoa_complete:
     }
 
 end:
+    if (screen_initialized) {
+        // Release the keyboard gamepad while its HID transport is still active.
+        sc_input_manager_destroy(&s->screen.im);
+    }
+
     if (timeout_started) {
         sc_timeout_stop(&s->timeout);
     }
