@@ -74,10 +74,15 @@ sc_gamepad_processor_process_gamepad_added(struct sc_gamepad_processor *gp,
         return;
     }
 
-    SDL_GameController* game_controller =
-        SDL_GameControllerFromInstanceID(event->gamepad_id);
-    assert(game_controller);
-    const char *name = SDL_GameControllerName(game_controller);
+    const char *name;
+    if (event->gamepad_id == SC_GAMEPAD_ID_KEYBOARD) {
+        name = "scrcpy keyboard gamepad";
+    } else {
+        SDL_GameController *game_controller =
+            SDL_GameControllerFromInstanceID(event->gamepad_id);
+        assert(game_controller);
+        name = SDL_GameControllerName(game_controller);
+    }
     LOGI("Gamepad added: [%" PRIu32 "] %s", event->gamepad_id, name);
 
     sc_gamepad_uhid_send_open(gamepad, &hid_open);
