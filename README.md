@@ -135,6 +135,11 @@ All application changes are isolated behind the new `--joystick` option.
   - Give the keyboard-created device a safe name without attempting to look it
     up as an SDL physical controller.
   - Reuse the normal Xbox 360 HID descriptor and report encoder.
+- `app/src/adb/adb.c` and `app/meson.build`
+  - Decouple ADB executable lookup from portable server lookup.
+  - The Debian build finds `adb` through `PATH`; `ADB=/absolute/path/to/adb`
+    remains available as an explicit override.
+  - Portable mode continues to find `scrcpy-server` beside the scrcpy binary.
 
 ### Documentation and tests
 
@@ -161,7 +166,8 @@ The supported native target is:
 
 The client is dynamically linked against the system libraries. The release
 archive contains the client, matching Android server and license/readme only;
-it does not bundle SDL2, FFmpeg, libusb or adb.
+it does not bundle SDL2, FFmpeg, libusb or adb. The Android server is located
+beside the client, while ADB is resolved through the host `PATH`.
 
 ### Compiler and linker flags
 
@@ -286,11 +292,25 @@ sudo apt install adb libsdl2-2.0-0 libavcodec59 libavformat59 libavutil57 \
 ```
 
 Extract the release archive and keep `scrcpy` and `scrcpy-server` in the
-same directory. Run:
+same directory. Install ADB and the runtime libraries:
+
+```sh
+sudo apt install adb libsdl2-2.0-0 libavcodec59 libavformat59 libavutil57 \\
+  libswresample4 libusb-1.0-0
+```
+
+Run from the extracted directory (ADB is found from `PATH`; the matching
+server is found beside the scrcpy executable):
 
 ```sh
 ./scrcpy
 ./scrcpy --joystick
+```
+
+To override ADB lookup explicitly:
+
+```sh
+ADB=/usr/bin/adb ./scrcpy --joystick
 ```
 
 For a Core 2 Duo / Intel GMA X3100 class system, a lower capture resolution and
