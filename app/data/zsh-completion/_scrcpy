@@ -37,6 +37,7 @@ arguments=(
     '--force-adb-forward[Do not attempt to use \"adb reverse\" to connect to the device]'
     '-G[Use UHID/AOA gamepad \(same as --gamepad=uhid or --gamepad=aoa, depending on OTG mode\)]'
     '--gamepad=[Set the gamepad input mode]:mode:(disabled uhid aoa)'
+    {-j,--joystick}'[Map keyboard keys to a virtual Android gamepad]'
     {-h,--help}'[Print the help]'
     '-K[Use UHID/AOA keyboard \(same as --keyboard=uhid or --keyboard=aoa, depending on OTG mode\)]'
     '--keyboard=[Set the keyboard input mode]:mode:(disabled sdk uhid aoa)'
