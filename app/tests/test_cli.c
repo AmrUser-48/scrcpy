@@ -121,6 +121,27 @@ static void test_options2(void) {
     assert(opts->record_format == SC_RECORD_FORMAT_MP4);
 }
 
+static void assert_joystick_option(char *argv[], size_t argc) {
+    struct scrcpy_cli_args args = {
+        .opts = scrcpy_options_default,
+        .help = false,
+        .version = false,
+    };
+
+    bool ok = scrcpy_parse_args(&args, argc, argv);
+    assert(ok);
+    assert(args.opts.joystick);
+    assert(args.opts.gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_UHID);
+}
+
+static void test_keyboard_joystick_option(void) {
+    char *long_argv[] = {"scrcpy", "--joystick"};
+    char *short_argv[] = {"scrcpy", "-j"};
+
+    assert_joystick_option(long_argv, ARRAY_LEN(long_argv));
+    assert_joystick_option(short_argv, ARRAY_LEN(short_argv));
+}
+
 static void test_parse_shortcut_mods(void) {
     uint8_t mods;
     bool ok;
@@ -157,6 +178,7 @@ int main(int argc, char *argv[]) {
     test_flag_help();
     test_options();
     test_options2();
+    test_keyboard_joystick_option();
     test_parse_shortcut_mods();
     return 0;
 }

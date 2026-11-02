@@ -230,7 +230,13 @@ Possible values are "disabled", "uhid" and "aoa":
  - "uhid" simulates physical HID gamepads using the Linux HID kernel module on the device.
  - "aoa" simulates physical HID gamepads using the AOAv2 protocol. It may only work over USB.
 
-Also see \fB\-\-keyboard\fR and R\fB\-\-mouse\fR.
+Also see \\fB\\-\\-keyboard\\fR and \\fB\\-\\-mouse\\fR.
+
+.TP
+.B \\-j, \\-\\-joystick
+Map keyboard keys to a virtual gamepad sent to Android. This enables the UHID gamepad automatically.
+Requires device control and a scrcpy window; not available in camera or OTG mode.
+See the keyboard mapping in the gamepad documentation.
 .TP
 .B \-h, \-\-help
 Print this help.

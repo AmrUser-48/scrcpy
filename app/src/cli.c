@@ -414,6 +414,12 @@ static const struct sc_option options[] = {
         .text = "Same as --gamepad=uhid, or --gamepad=aoa if --otg is set.",
     },
     {
+        .shortopt = 'j',
+        .longopt = "joystick",
+        .text = "Map keyboard keys to a virtual gamepad sent to Android.\\n"
+                "Requires device control and a scrcpy window.",
+    },
+    {
         .longopt_id = OPT_GAMEPAD,
         .longopt = "gamepad",
         .argdesc = "mode",
@@ -2942,6 +2948,9 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
             case 'G':
                 opts->gamepad_input_mode = SC_GAMEPAD_INPUT_MODE_UHID_OR_AOA;
                 break;
+            case 'j':
+                opts->joystick = true;
+                break;
             case OPT_GAMEPAD:
                 if (!parse_gamepad(optarg, &opts->gamepad_input_mode)) {
                     return false;
@@ -3171,6 +3180,27 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
             opts->gamepad_input_mode = otg ? SC_GAMEPAD_INPUT_MODE_AOA
                                            : SC_GAMEPAD_INPUT_MODE_UHID;
         }
+    }
+
+    if (opts->joystick) {
+        if (!opts->control) {
+            LOGE("--joystick requires device control; remove --no-control.");
+            return false;
+        }
+        if (!opts->window) {
+            LOGE("--joystick requires a scrcpy window; remove --no-window.");
+            return false;
+        }
+        if (opts->video_source == SC_VIDEO_SOURCE_CAMERA) {
+            LOGE("--joystick is not available in camera mode.");
+            return false;
+        }
+        if (otg) {
+            LOGE("--joystick is not supported in OTG mode.");
+            return false;
+        }
+        // Keyboard input is sent through the virtual UHID gamepad.
+        opts->gamepad_input_mode = SC_GAMEPAD_INPUT_MODE_UHID;
     }
 
     // If mouse bindings are not explicitly set, configure default bindings

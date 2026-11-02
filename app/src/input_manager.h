@@ -12,6 +12,7 @@
 #include "file_pusher.h"
 #include "options.h"
 #include "trait/gamepad_processor.h"
+#include "keyboard_gamepad.h"
 #include "trait/key_processor.h"
 #include "trait/mouse_processor.h"
 
@@ -23,6 +24,7 @@ struct sc_input_manager {
     struct sc_key_processor *kp;
     struct sc_mouse_processor *mp;
     struct sc_gamepad_processor *gp;
+    struct sc_keyboard_gamepad keyboard_gamepad;
 
     bool camera;
 
@@ -57,6 +59,7 @@ struct sc_input_manager_params {
     struct sc_key_processor *kp;
     struct sc_mouse_processor *mp;
     struct sc_gamepad_processor *gp;
+    bool keyboard_gamepad;
     bool camera;
 
     struct sc_mouse_bindings mouse_bindings;
@@ -65,9 +68,12 @@ struct sc_input_manager_params {
     uint8_t shortcut_mods; // OR of enum sc_shortcut_mod values
 };
 
-void
+bool
 sc_input_manager_init(struct sc_input_manager *im,
                       const struct sc_input_manager_params *params);
+
+void
+sc_input_manager_destroy(struct sc_input_manager *im);
 
 void
 sc_input_manager_handle_event(struct sc_input_manager *im,

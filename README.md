@@ -43,7 +43,7 @@ Its features include:
  - [camera mirroring](doc/camera.md) (Android 12+)
  - [mirroring as a webcam (V4L2)](doc/v4l2.md) (Linux-only)
  - physical [keyboard][hid-keyboard] and [mouse][hid-mouse] simulation (HID)
- - [gamepad](doc/gamepad.md) support
+ - [gamepad](doc/gamepad.md) support, including keyboard-to-gamepad mapping (`--joystick` / `-j`)
  - [OTG mode](doc/otg.md)
  - and more…
 

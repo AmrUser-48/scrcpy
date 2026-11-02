@@ -698,6 +698,7 @@ sc_screen_init(struct sc_screen *screen,
         .kp = params->kp,
         .mp = params->mp,
         .gp = params->gp,
+        .keyboard_gamepad = params->keyboard_gamepad,
         .camera = params->camera,
         .mouse_bindings = params->mouse_bindings,
         .legacy_paste = params->legacy_paste,
@@ -705,7 +706,10 @@ sc_screen_init(struct sc_screen *screen,
         .shortcut_mods = params->shortcut_mods,
     };
 
-    sc_input_manager_init(&screen->im, &im_params);
+    if (!sc_input_manager_init(&screen->im, &im_params)) {
+        av_frame_free(&screen->frame);
+        goto error_destroy_texture;
+    }
 
     // Initialize even if not used for simplicity
     sc_mouse_capture_init(&screen->mc, screen->window, params->shortcut_mods);

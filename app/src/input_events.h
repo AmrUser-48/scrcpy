@@ -412,6 +412,7 @@ struct sc_touch_event {
 // As documented in <https://wiki.libsdl.org/SDL3/SDL_JoystickID>:
 // The value 0 is an invalid ID.
 #define SC_GAMEPAD_ID_INVALID 0
+#define SC_GAMEPAD_ID_KEYBOARD UINT32_MAX
 
 struct sc_gamepad_device_event {
     uint32_t gamepad_id;

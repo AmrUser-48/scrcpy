@@ -822,6 +822,7 @@ aoa_complete:
             .kp = kp,
             .mp = mp,
             .gp = gp,
+            .keyboard_gamepad = options->joystick,
             .mouse_bindings = options->mouse_bindings,
             .legacy_paste = options->legacy_paste,
             .clipboard_autosync = options->clipboard_autosync,
@@ -1045,6 +1046,11 @@ aoa_complete:
     disconnected = ret == SCRCPY_EXIT_DISCONNECTED;
 
 end:
+    if (screen_initialized) {
+        // Release keyboard gamepad inputs while the UHID transport is active.
+        sc_input_manager_destroy(&s->screen.im);
+    }
+
     if (timeout_started) {
         sc_timeout_stop(&s->timeout);
     }

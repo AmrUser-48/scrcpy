@@ -14,13 +14,15 @@
 #include "util/log.h"
 #include "util/sdl.h"
 
-void
+bool
 sc_input_manager_init(struct sc_input_manager *im,
                       const struct sc_input_manager_params *params) {
     // A processor must have ops initialized
     assert(!params->kp || params->kp->ops);
     assert(!params->mp || params->mp->ops);
     assert(!params->gp || params->gp->ops);
+
+    memset(&im->keyboard_gamepad, 0, sizeof(im->keyboard_gamepad));
 
     im->controller = params->controller;
     im->fp = params->fp;
@@ -49,6 +51,18 @@ sc_input_manager_init(struct sc_input_manager *im,
     im->next_sequence = 1; // 0 is reserved for SC_SEQUENCE_INVALID
 
     im->disconnected = false;
+
+    if (params->keyboard_gamepad
+            && !sc_keyboard_gamepad_init(&im->keyboard_gamepad, im->gp)) {
+        return false;
+    }
+
+    return true;
+}
+
+void
+sc_input_manager_destroy(struct sc_input_manager *im) {
+    sc_keyboard_gamepad_destroy(&im->keyboard_gamepad);
 }
 
 static void
@@ -436,6 +450,8 @@ sc_input_manager_process_key(struct sc_input_manager *im,
     uint16_t mods = im->sdl_shortcut_mods;
     bool is_shortcut = sc_shortcut_mods_is_shortcut_mod(mods, mod)
                     || sc_shortcut_mods_is_shortcut_key(mods, sdl_keycode);
+
+    sc_keyboard_gamepad_process_key(&im->keyboard_gamepad, event);
 
     if (down && !repeat && !disconnected) {
         if (sdl_keycode == im->last_keycode && mod == im->last_mod) {
@@ -1205,6 +1221,9 @@ sc_input_manager_handle_event(struct sc_input_manager *im,
             break;
         case SC_EVENT_DEVICE_DISCONNECTED:
             sc_input_manager_on_device_disconnected(im);
+            break;
+        case SC_EVENT_KEYBOARD_GAMEPAD_AUTO_X:
+            sc_keyboard_gamepad_process_event(&im->keyboard_gamepad, event);
             break;
     }
 }

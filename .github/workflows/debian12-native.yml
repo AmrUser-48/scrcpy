@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - debian12-5.0.1
+      - debian12-5.0.1-keyboard-gamepad
   workflow_dispatch:
 
 concurrency:
@@ -174,6 +175,7 @@ jobs:
           ninja -C build
           patchelf --set-rpath '$ORIGIN/lib' build/app/scrcpy
           build/app/scrcpy --version
+          build/app/scrcpy --help | grep -F -- '--joystick'
 
       - name: Verify no newer CPU instructions
         shell: bash
@@ -270,6 +272,7 @@ jobs:
 
   publish:
     name: Publish Debian 12 GitHub release
+    if: github.ref == 'refs/heads/debian12-5.0.1'
     needs: build
     runs-on: ubuntu-22.04
 

@@ -33,6 +33,7 @@ _scrcpy() {
         --force-adb-forward
         -G
         --gamepad=
+        -j --joystick
         -h --help
         --hwdec=
         --ignore-video-encoder-constraints
