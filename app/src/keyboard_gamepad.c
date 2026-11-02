@@ -135,7 +135,7 @@ pulse_x(struct sc_keyboard_gamepad *kg) {
 static Uint32 SDLCALL
 auto_x_timer_callback(void *userdata, SDL_TimerID timer_id, Uint32 interval) {
     (void) timer_id;
-    struct sc_keyboard_gamepad *kg = userdata;
+    (void) userdata;
 
     SDL_Event event = {0};
     event.type = SC_EVENT_KEYBOARD_GAMEPAD_AUTO_X;

@@ -416,7 +416,7 @@ static const struct sc_option options[] = {
     {
         .shortopt = 'j',
         .longopt = "joystick",
-        .text = "Map keyboard keys to a virtual gamepad sent to Android.\\n"
+        .text = "Map keyboard keys to a virtual gamepad sent to Android.\n"
                 "Requires device control and a scrcpy window.",
     },
     {
