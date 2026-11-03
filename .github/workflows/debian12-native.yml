@@ -308,7 +308,7 @@ jobs:
 
           Build commit: ${GITHUB_SHA}
 
-Includes the D630 keyboard-to-gamepad extension (`-j` / `--joystick`).
+          Includes the D630 keyboard-to-gamepad extension (`-j` / `--joystick`).
           EOF
 
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
