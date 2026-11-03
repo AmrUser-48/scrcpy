@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: scrcpy-debian12-5.0.1
+  group: scrcpy-debian12-5.0.1-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/debian12-5.0.1'
     name: Build scrcpy 5.0.1 for Debian 12 / Core 2
     runs-on: ubuntu-22.04
     container:
