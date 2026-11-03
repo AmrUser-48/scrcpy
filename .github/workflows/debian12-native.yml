@@ -273,7 +273,6 @@ jobs:
   publish:
     name: Publish Debian 12 GitHub release
     if: github.ref == 'refs/heads/debian12-5.0.1-keyboard-gamepad'
-    needs: build
     runs-on: ubuntu-22.04
 
     env:
@@ -285,6 +284,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: scrcpy-5.0.1-debian12-core2-x86_64
+          run-id: 41546127876
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
           path: dist
 
       - name: Create or update release
