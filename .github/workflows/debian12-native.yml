@@ -272,13 +272,13 @@ jobs:
 
   publish:
     name: Publish Debian 12 GitHub release
-    if: github.ref == 'refs/heads/debian12-5.0.1'
+    if: github.ref == 'refs/heads/debian12-5.0.1-keyboard-gamepad'
     needs: build
     runs-on: ubuntu-22.04
 
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: v5.0.1-debian12-core2
+      TAG: v5.0.1-debian12-core2-keyboard-gamepad
 
     steps:
       - name: Download build artifact
@@ -295,7 +295,7 @@ jobs:
           test -s dist/SHA256SUMS.txt
 
           cat > release-notes.md <<EOF
-          ## scrcpy 5.0.1 — Debian 12 / Core 2
+          ## scrcpy 5.0.1 — Debian 12 / Core 2 / keyboard-gamepad (-j)
 
           Portable Debian 12 x86_64 build for older hardware.
 
@@ -307,6 +307,8 @@ jobs:
           - matching scrcpy 5.0.1 Android server
 
           Build commit: ${GITHUB_SHA}
+
+Includes the D630 keyboard-to-gamepad extension (`-j` / `--joystick`).
           EOF
 
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
